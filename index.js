@@ -19,10 +19,74 @@ async function run(){
     try{
         const appointmentOptionCollection = client.db('doctorsPortal').collection('appointmentOptions') 
 
+        const bookingsCollection = client.db('doctorsPortal').collection('bookings') 
+
         app.get('/appointmentOptions', async(req, res) =>{
+            const date = req.query.date
             const query = {}
             const cursor = appointmentOptionCollection.find(query)
-            const result = await cursor.toArray()
+            const results = await cursor.toArray()
+            const bookingQuery = {
+                appiontmentDate: date
+            }
+            const alreadyBooked = await bookingsCollection.find(bookingQuery).toArray()
+            results.forEach(result =>{
+                const optionBooked = alreadyBooked.filter(book => book.treatment === result.name)
+                const bookedSlots = optionBooked.map(book => book.slot)
+                const remainingSlot = result.slots.filter(slot => !bookedSlots.includes(slot))
+                result.slots = remainingSlot
+                // console.log(date, result.name, remainingSlot.length);
+            })
+            res.send(results)
+        })
+        app.get('/v2/appointmentOptions', async(req, res) =>{
+            const date = req.query.date
+            const options = await appointmentOptionCollection.aggregate([
+                {
+                    $lookup: {
+                        from: 'bookings',
+                        localField:'name',
+                        foreignField: 'treatment',
+                        pipeline: [ 
+                            {
+                                $match: {
+                                    $expr: {
+                                       $eq: ['$appiontmentDate', date] 
+                                    }
+                                }
+                            }
+                         ],
+                        as: 'booked'
+                    }
+                },
+                {
+                    $project: {
+                        name: 1,
+                        slots: 1,
+                        booked: {
+                            $map: {
+                                input: '$booked',
+                                as: 'book',
+                                in: '$$book.slot'
+                            }
+                        }
+                    }
+                },
+                {
+                    $project: {
+                        name: 1,
+                        slots: {
+                            $setDifference: ['$slots', '$booked']
+                        }
+                    }
+                }
+            ]).toArray();
+            res.send(options)
+        })
+
+        app.post('/bookings', async(req, res) =>{
+            const booking = req.body
+            const result = await bookingsCollection.insertOne(booking)
             res.send(result)
         })
 
