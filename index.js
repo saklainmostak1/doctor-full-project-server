@@ -354,7 +354,7 @@ async function run() {
         //     const options = {upsert: true}
         //     const updatedDoc = {
         //         $set: {
-        //             price: 500
+        //             price: '500'
         //         }
         //     }
         //     const result = await doctorsCollection.updateMany(filter, updatedDoc, options)
@@ -374,6 +374,37 @@ async function run() {
         })
 
         
+
+
+        app.put('/allDoctor-update/:id', async (req, res) => {
+            const id = req.params.id
+            const filter = { _id: new ObjectId(id) }
+            const products = req.body
+            console.log(products);
+            const options = {upsert: true}
+            const updatedProducts = {
+                $set: {
+                    name: products.name,
+                    price: products.price,
+                    image: products.image,
+                    email: products.email,
+                    specialty: products.specialty,
+                    description: products.description,
+                    qualification: products.qualification,
+                    CERTIFICATION1: products.CERTIFICATION1,
+                    CERTIFICATION2: products.CERTIFICATION2,
+                    AWARDS1: products.AWARDS1,
+                    AWARDS2: products.AWARDS2
+                    
+                }
+            }
+            const result = await doctorsCollection.updateOne(filter, updatedProducts, options)
+            res.send(result)
+           
+        })
+
+
+
 
 
         app.delete('/doctors/:id', verifyJWT, verifyAdmin, async (req, res) => {
